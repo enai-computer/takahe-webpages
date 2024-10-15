@@ -1,0 +1,100 @@
+body {
+    background-color: var(--sand-light-3);
+}
+
+.root {
+    font-family: var(--font-soehne);
+}
+
+.top-info {
+    flex-shrink: 0;
+    display: flex;
+    align-items: flex-center;
+    justify-content: space-between;
+    padding-top: 5rem;
+    max-width: fit-content;
+    max-height: fit-content;
+    margin: 0 auto;
+}
+
+.top-info-container {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+}
+
+.top-info-left {
+    max-height: fit-content;
+}
+
+.top-info-right {
+    padding-left: 10px;
+    font-size: 18px;
+    font-weight: 400;
+    color: var(--sand-light-115);
+    max-width: 34rem;
+}
+
+.eve-mark-wrapper {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    box-sizing: border-box;
+    justify-content: center;
+    margin: 0 auto;
+    padding-top: 20%;
+    max-width: 100%;
+}
+
+.chat-announcement {
+    width: 620px;
+    border: 0;
+    outline: 0;
+    background-color: #fdfdfc;
+    align-self: stretch;
+    border-radius: 8px;
+    justify-content: center;
+    padding: 15px var(--padding-xl);
+    font-family: var(--font-signifier);
+    font-weight: 300;
+    font-size: 21px;
+    color: var(--sand-light-11);
+    min-width: 250px;
+    z-index: 1;
+    /* margin: 0 auto; */
+  }
+  /* .model-chatgpt-o1-container {
+
+  } */
+  .model-info-container {
+    align-self: stretch;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding: 0 226px 0 227px;
+    color: var(--sand-light-9);
+    font-family: var(--font-soehne);
+  }
+
+  .model-info-container #model-info-label {
+    /* padding-left: 5px; */
+    font-family: var(--font-soehne-kraftig);
+    /* max-height: fit-content; */
+  }
+
+  .chat-announcement-parent {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    width: 620px;
+    /* width: 100%; */
+    align-items: center;
+    gap: 16px;
+    max-width: 100%;
+    text-align: right;
+    font-size: 14px;
+    color: var(--sand-light-9);
+    font-family: var(--font-shne);
+    margin: 0 auto;
+    margin-top: 20%;
+  }

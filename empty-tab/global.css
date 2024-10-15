@@ -1,0 +1,71 @@
+body,
+div,
+dl,
+dt,
+dd,
+ul,
+ol,
+li,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+pre,
+form,
+fieldset,
+input,
+textarea,
+p,
+blockquote,
+th,
+td {
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+}
+
+:root {
+  /* fonts */
+  --font-signifier: signifier-regular;
+  --font-soehne: soehne-buch;
+  --font-soehne-kraftig: soehne-kraftig;
+
+  /* Colors */
+  --sand-light-1: #FDFDFC;
+  --sand-light-3: #f3f3f2;
+  --sand-light-9: #90908c;
+  --sand-light-11: #706f6c;
+  --sand-light-115: #51504b;
+
+  /* Paddings */
+  --padding-xl: 20px;
+  --padding-94xl: 113px;
+
+  /* Border radiuses */
+  --br-3xs: 10px;
+}
+
+
+@font-face {
+  font-family: "soehne-buch";
+  src: url(../fonts/sohne-buch.ttf);
+}
+
+@font-face {
+  font-family: "soehne-kraftig";
+  src: url(../fonts/sohne-kraftig.ttf);
+}
+
+@font-face {
+  font-family: "signifier-regular";
+  src: url(../fonts/signifier-regular.otf);
+}
