@@ -1,0 +1,105 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: "Signifier";
+  font-weight: 400;
+  src: url(./assets/fonts/signifier-regular.woff2);
+}
+
+@font-face {
+  font-family: "Signifier";
+  font-weight: 400;
+  font-style: italic;
+  src: url(./assets/fonts/signifier-regular-italic.woff2);
+}
+
+@font-face {
+  font-family: "Signifier";
+  font-weight: 300;
+  src: url(./assets/fonts/signifier-light.woff2);
+}
+
+@font-face {
+  font-family: "Signifier";
+  font-weight: 300;
+  font-style: italic;
+  src: url(./assets/fonts/signifier-light-italic.woff2);
+}
+
+@font-face {
+  font-family: "Söhne";
+  font-weight: 300;
+  src: url(./assets/fonts/soehne-leicht.woff2);
+}
+
+@font-face {
+  font-family: "Söhne";
+  font-weight: 400;
+  src: url(./assets/fonts/soehne-buch.woff2);
+}
+
+@font-face {
+  font-family: "Söhne";
+  font-weight: 500;
+  src: url(./assets/fonts/soehne-kraftig.woff2);
+}
+
+.font-signifier {
+  font-family: "Signifier";
+}
+
+.font-soehne {
+  font-family: "Söhne";
+}
+
+.response pre {
+  white-space: pre-line;
+}
+
+.response > * {
+  @apply mb-2;
+}
+
+.response ol {
+  @apply list-decimal list-inside;
+}
+
+.response ol li > p {
+  @apply inline;
+}
+
+.response ul {
+  @apply list-disc list-inside;
+}
+
+.response ul li > p {
+  @apply inline;
+}
+
+.response a {
+  @apply text-birkin;
+}
+
+.response * {
+  @apply tracking-[0.34px] text-[17px] leading-[22px];
+}
+
+.response pre > code {
+  @apply bg-black text-sand-6 rounded-lg block p-[10px];
+}
+
+.response strong {
+  @apply font-medium;
+}
+
+.scrollbar-styled {
+  scrollbar-color: #f37021 transparent;
+  scrollbar-width: thin;
+}
+
+.scrollbar-webkit-none::-webkit-scrollbar {
+  display: none;
+  scrollbar-width: none;
+}
