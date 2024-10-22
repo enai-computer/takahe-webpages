@@ -16,9 +16,9 @@ type ModifiedWindow = Window &
     updateAuthDetails?(details: AuthDetails): void;
   };
 
-/* @TODO(patrick): define here what the Enai app sends the web app. */
 interface AuthDetails {
   userId: string;
+  bearerToken: string;
 }
 
 enum AuthDetailsStatus {
@@ -53,6 +53,7 @@ const MOCK_WEBVIEW_ENV = {
     "Balancing sweet, salty, sour, bitter, and umami flavors is key to making delicious and memorable dishes.",
   authDetails: {
     userId: "38db32a3-ef9b-40dd-a5fb-cd9ab4776016",
+    bearerToken: "test",
   } satisfies AuthDetails,
 } as const;
 
@@ -217,7 +218,7 @@ function App() {
           method: "POST",
           headers: new Headers({
             "Content-Type": "application/json",
-            /* @TODO(patrick): maybe set headers from `authDetails` here, depending on what they contain. */
+            Authorization: `Bearer ${authDetails.details!.bearerToken}`,
           }),
           body: JSON.stringify({
             is_streaming: true,
