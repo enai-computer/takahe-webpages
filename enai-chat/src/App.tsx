@@ -14,7 +14,19 @@ type ModifiedWindow = Window &
     API_BASE_URL: string;
     updateInfoModal?(innerHtml: string): void;
     updateAuthDetails?(details: AuthDetails): void;
+    getMessages?(): ExchangeMessage[];
+    setMessages?(messages: ExchangeMessage[]): void;
   };
+
+enum ExchangeMessageRole {
+  User = "user",
+  System = "system",
+}
+
+interface ExchangeMessage {
+  role: ExchangeMessageRole;
+  content: string;
+}
 
 interface AuthDetails {
   userId: string;
@@ -72,6 +84,16 @@ const INPUT_STYLE_CONFIG = {
     small: 18,
   },
 } as const;
+
+const convertMessageToExchangeMessage = (message: Message): ExchangeMessage => {
+  return {
+    role:
+      message.type === MessageType.Prompt
+        ? ExchangeMessageRole.User
+        : ExchangeMessageRole.System,
+    content: message.text,
+  };
+};
 
 function App() {
   const [inspirationHtml, setInspirationHtml] = useState<string | null>(null);
@@ -225,12 +247,7 @@ function App() {
             question: sanitizedPrompt,
             messages: messages
               .slice(messages.length - MAX_CONTEXT_MESSAGES_LENGTH)
-              .map((message) => {
-                return {
-                  role: message.type === MessageType.Prompt ? "user" : "system",
-                  content: message.text,
-                };
-              }),
+              .map(convertMessageToExchangeMessage),
           }),
         }
       );
@@ -343,6 +360,21 @@ function App() {
     win.updateInfoModal = (innerHtml: string) => setInspirationHtml(innerHtml);
     win.updateAuthDetails = (details: AuthDetails) =>
       setAuthDetails({ status: AuthDetailsStatus.InUse, details });
+    win.setMessages = (exchangeMessages) => {
+      setMessages(
+        exchangeMessages.map((exchangeMessage) => {
+          return {
+            id: Math.random().toString(16).slice(2),
+            isLoading: false,
+            text: exchangeMessage.content,
+            type:
+              exchangeMessage.role === ExchangeMessageRole.User
+                ? MessageType.Prompt
+                : MessageType.Response,
+          };
+        })
+      );
+    };
 
     if (MOCK_WEBVIEW_ENV.enabled) {
       win.API_BASE_URL = MOCK_WEBVIEW_ENV.baseUrl;
@@ -351,10 +383,22 @@ function App() {
     }
 
     return () => {
+      delete win.setMessages;
       delete win.updateInfoModal;
       delete win.updateAuthDetails;
     };
   }, []);
+
+  useEffect(() => {
+    const win = window as ModifiedWindow;
+    win.getMessages = () => {
+      return messages.map(convertMessageToExchangeMessage);
+    };
+
+    return () => {
+      delete win.getMessages;
+    };
+  }, [messages]);
 
   return (
     <div className="h-dvh px-[8px] py-[12px] md:p-[80px] md:pt-0 flex justify-center">
