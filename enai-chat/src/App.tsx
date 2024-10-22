@@ -21,6 +21,12 @@ interface AuthDetails {
   userId: string;
 }
 
+enum AuthDetailsStatus {
+  NotSet = "NOT_SET",
+  Invalid = "INVALID",
+  InUse = "IN_USE",
+}
+
 enum MessageType {
   Prompt = "PROMPT",
   Response = "RESPONSE",
@@ -68,7 +74,16 @@ const INPUT_STYLE_CONFIG = {
 
 function App() {
   const [inspirationHtml, setInspirationHtml] = useState<string | null>(null);
-  const [authDetails, setAuthDetails] = useState<AuthDetails | null>(null);
+  const [authDetails, setAuthDetails] = useState<
+    | {
+        status: AuthDetailsStatus.NotSet | AuthDetailsStatus.Invalid;
+        details: null;
+      }
+    | {
+        status: AuthDetailsStatus.InUse;
+        details: AuthDetails;
+      }
+  >({ status: AuthDetailsStatus.NotSet, details: null });
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -95,32 +110,38 @@ function App() {
     /* @ts-expect-error webkit */
     // eslint-disable-next-line
     window.webkit.messageHandlers.callbackHandler.postMessage({
-      /* @TODO(patrick): define what message to send to the Enai app. */
+      source: "enai-agent",
+      version: 1,
+      type: "token-request",
+      "sub-type":
+        authDetails.status === AuthDetailsStatus.NotSet ? "inital" : "refresh",
     });
 
     console.debug("Waiting for auth details now...");
-    const res = (await Promise.race([
+    const details = (await Promise.race([
       new Promise((resolve) => {
         setTimeout(() => resolve(false), TIME_LIMIT_MS);
       }),
       new Promise((resolve) => {
         const win = window as ModifiedWindow;
-        win.updateAuthDetails = (authDetails: AuthDetails) => {
-          setAuthDetails(authDetails);
-          resolve(authDetails);
+        win.updateAuthDetails = (details: AuthDetails) => {
+          resolve(details);
 
-          win.updateAuthDetails = (authDetails: AuthDetails) =>
-            setAuthDetails(authDetails);
+          win.updateAuthDetails = (details: AuthDetails) =>
+            setAuthDetails({ status: AuthDetailsStatus.InUse, details });
         };
       }),
     ])) as AuthDetails | false;
     console.debug(
-      res ? "Received auth details" : "Did not receive auth details in time"
+      details ? "Received auth details" : "Did not receive auth details in time"
     );
-    if (res) {
-      setAuthDetails(res);
+    if (details) {
+      setAuthDetails({
+        status: AuthDetailsStatus.InUse,
+        details: details,
+      });
     }
-    return res;
+    return details;
   };
 
   const submitPropt = async (
@@ -176,24 +197,21 @@ function App() {
       });
     };
 
-    let lastAuthDetails: AuthDetails | null = authDetails;
-    if (!authDetails) {
-      const authDetailsRes = await waitForAuthDetails();
-      if (!authDetailsRes) {
+    let lastAuthDetails = authDetails;
+    if (lastAuthDetails.status !== AuthDetailsStatus.InUse) {
+      const details = await waitForAuthDetails();
+      if (!details) {
         setFailureMessages();
         return;
       }
-      lastAuthDetails = authDetailsRes;
+      lastAuthDetails = { status: AuthDetailsStatus.InUse, details };
     }
 
     const win = window as ModifiedWindow;
-    const params = new URLSearchParams({
-      q: sanitizedPrompt,
-    });
 
     try {
       const res = await fetch(
-        `${win.API_BASE_URL}${lastAuthDetails!.userId}/answer-stream?${params}`,
+        `${win.API_BASE_URL}${lastAuthDetails.details.userId}/answer`,
         {
           signal: abortControllerRef.current.signal,
           method: "POST",
@@ -202,6 +220,8 @@ function App() {
             /* @TODO(patrick): maybe set headers from `authDetails` here, depending on what they contain. */
           }),
           body: JSON.stringify({
+            is_streaming: true,
+            question: sanitizedPrompt,
             messages: messages
               .slice(messages.length - MAX_CONTEXT_MESSAGES_LENGTH)
               .map((message) => {
@@ -220,7 +240,7 @@ function App() {
           retries,
           "retries"
         );
-        setAuthDetails(null);
+        setAuthDetails({ status: AuthDetailsStatus.Invalid, details: null });
         if (retries >= MAX_RETRIES) {
           setFailureMessages();
           return;
@@ -320,8 +340,8 @@ function App() {
   useEffect(() => {
     const win = window as ModifiedWindow;
     win.updateInfoModal = (innerHtml: string) => setInspirationHtml(innerHtml);
-    win.updateAuthDetails = (authDetails: AuthDetails) =>
-      setAuthDetails(authDetails);
+    win.updateAuthDetails = (details: AuthDetails) =>
+      setAuthDetails({ status: AuthDetailsStatus.InUse, details });
 
     if (MOCK_WEBVIEW_ENV.enabled) {
       win.API_BASE_URL = MOCK_WEBVIEW_ENV.baseUrl;
