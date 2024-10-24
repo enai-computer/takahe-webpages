@@ -11,6 +11,9 @@ export default {
           11.5: "#51504B",
         },
       },
+      boxShadow: {
+        'enai-drop': '0 0px 1px rgba(144, 144, 140, 1)',
+      },
     },
   },
   plugins: [tailwindcssRadixColors],
