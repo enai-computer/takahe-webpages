@@ -498,7 +498,7 @@ function App() {
               e.currentTarget.querySelector("textarea")!.value = "";
               void submitPropt(prompt, messages);
             }}
-            className="overflow-hidden relative"
+            className="overflow-hidden relative rounded-lg shadow-enai-drop"
           >
             <div className="bg-white rounded-lg max-h-[300px] overflow-hidden">
               <textarea
