@@ -9,18 +9,25 @@ import Markdown from "react-markdown";
 import { twMerge } from "tailwind-merge";
 import { IconEveMark } from "./components/icons/IconEveMark";
 
+const API_VERSION = "/v1";
+
 type ModifiedWindow = Window &
   typeof globalThis & {
-    API_BASE_URL: string;
+    API_BASE_HOST: string;
     updateInfoModal?(innerHtml: string): void;
     updateAuthDetails?(details: AuthDetails): void;
     getMessages?(): ExchangeMessage[];
     setMessages?(messages: ExchangeMessage[]): void;
   };
 
+const API_BASE_URL = (): string => {
+  const win = window as ModifiedWindow;
+  return win.API_BASE_HOST + API_VERSION;
+};
+
 enum ExchangeMessageRole {
   User = "user",
-  System = "system",
+  Assistant = "assistant",
 }
 
 interface ExchangeMessage {
@@ -60,7 +67,7 @@ interface Message {
  */
 const MOCK_WEBVIEW_ENV = {
   enabled: false,
-  baseUrl: "http://0.0.0.0:80/v1/",
+  baseUrl: "http://127.0.0.1:8000",
   inspiration:
     "Balancing sweet, salty, sour, bitter, and umami flavors is key to making delicious and memorable dishes.",
   authDetails: {
@@ -90,7 +97,7 @@ const convertMessageToExchangeMessage = (message: Message): ExchangeMessage => {
     role:
       message.type === MessageType.Prompt
         ? ExchangeMessageRole.User
-        : ExchangeMessageRole.System,
+        : ExchangeMessageRole.Assistant,
     content: message.text,
   };
 };
@@ -132,7 +139,7 @@ function App() {
 
     /* @ts-expect-error webkit */
     // eslint-disable-next-line
-    window.webkit.messageHandlers.callbackHandler.postMessage({
+    window.webkit.messageHandlers.en_ai_handler.postMessage({
       source: "enai-agent",
       version: 1,
       type: "token-request",
@@ -230,11 +237,9 @@ function App() {
       lastAuthDetails = { status: AuthDetailsStatus.InUse, details };
     }
 
-    const win = window as ModifiedWindow;
-
     try {
       const res = await fetch(
-        `${win.API_BASE_URL}${lastAuthDetails.details.userId}/answer`,
+        `${API_BASE_URL()}/${lastAuthDetails.details.userId}/answer`,
         {
           signal: abortControllerRef.current.signal,
           method: "POST",
@@ -377,9 +382,17 @@ function App() {
     };
 
     if (MOCK_WEBVIEW_ENV.enabled) {
-      win.API_BASE_URL = MOCK_WEBVIEW_ENV.baseUrl;
+      win.API_BASE_HOST = MOCK_WEBVIEW_ENV.baseUrl;
       win.updateInfoModal(MOCK_WEBVIEW_ENV.inspiration);
       win.updateAuthDetails?.(MOCK_WEBVIEW_ENV.authDetails);
+    } else {
+      /* @ts-expect-error webkit */
+      // eslint-disable-next-line
+      window.webkit.messageHandlers.en_ai_handler.postMessage({
+        source: "enai-agent",
+        version: 1,
+        type: "request-history",
+      });
     }
 
     return () => {
