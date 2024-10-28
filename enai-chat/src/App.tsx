@@ -15,7 +15,7 @@ type ModifiedWindow = Window &
   typeof globalThis & {
     API_BASE_HOST: string;
     updateInfoModal?(innerHtml: string): void;
-    updateAuthDetails?(details: AuthDetails): void;
+    updateAuthDetails?(details: AuthInfoDetails): void;
     getMessages?(): ExchangeMessage[];
     setMessages?(messages: ExchangeMessage[]): void;
   };
@@ -35,16 +35,26 @@ interface ExchangeMessage {
   content: string;
 }
 
-interface AuthDetails {
+interface AuthInfoDetails {
   userId: string;
   bearerToken: string;
 }
 
-enum AuthDetailsStatus {
+enum AuthInfoStatus {
   NotSet = "NOT_SET",
   Invalid = "INVALID",
   InUse = "IN_USE",
 }
+
+type AuthInfo =
+  | {
+      status: AuthInfoStatus.NotSet | AuthInfoStatus.Invalid;
+      details: null;
+    }
+  | {
+      status: AuthInfoStatus.InUse;
+      details: AuthInfoDetails;
+    };
 
 enum MessageType {
   Prompt = "PROMPT",
@@ -73,7 +83,7 @@ const MOCK_WEBVIEW_ENV = {
   authDetails: {
     userId: "38db32a3-ef9b-40dd-a5fb-cd9ab4776016",
     bearerToken: "test",
-  } satisfies AuthDetails,
+  } satisfies AuthInfoDetails,
 } as const;
 
 /** Max messages to send to the backend as context. */
@@ -104,16 +114,10 @@ const convertMessageToExchangeMessage = (message: Message): ExchangeMessage => {
 
 function App() {
   const [inspirationHtml, setInspirationHtml] = useState<string | null>(null);
-  const [authDetails, setAuthDetails] = useState<
-    | {
-        status: AuthDetailsStatus.NotSet | AuthDetailsStatus.Invalid;
-        details: null;
-      }
-    | {
-        status: AuthDetailsStatus.InUse;
-        details: AuthDetails;
-      }
-  >({ status: AuthDetailsStatus.NotSet, details: null });
+  const [authInfo, setAuthInfo] = useState<AuthInfo>({
+    status: AuthInfoStatus.NotSet,
+    details: null,
+  });
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -134,18 +138,20 @@ function App() {
   /**
    * @returns Either the new auth details, or `false` in case it failed.
    */
-  const waitForAuthDetails = async (): Promise<AuthDetails | false> => {
+  const waitForAuthDetails = async (): Promise<AuthInfoDetails | false> => {
     const TIME_LIMIT_MS = 10_000;
 
-    /* @ts-expect-error webkit */
-    // eslint-disable-next-line
-    window.webkit.messageHandlers.en_ai_handler.postMessage({
-      source: "enai-agent",
-      version: 1,
-      type: "token-request",
-      sub_type:
-        authDetails.status === AuthDetailsStatus.NotSet ? "initial" : "refresh",
-    });
+    if (!MOCK_WEBVIEW_ENV.enabled) {
+      /* @ts-expect-error webkit */
+      // eslint-disable-next-line
+      window.webkit.messageHandlers.en_ai_handler.postMessage({
+        source: "enai-agent",
+        version: 1,
+        type: "token-request",
+        sub_type:
+          authInfo.status === AuthInfoStatus.NotSet ? "initial" : "refresh",
+      });
+    }
 
     console.debug("Waiting for auth details now...");
     const details = (await Promise.race([
@@ -153,32 +159,47 @@ function App() {
         setTimeout(() => resolve(false), TIME_LIMIT_MS);
       }),
       new Promise((resolve) => {
-        const win = window as ModifiedWindow;
-        win.updateAuthDetails = (details: AuthDetails) => {
-          resolve(details);
+        if (MOCK_WEBVIEW_ENV.enabled) {
+          setTimeout(() => {
+            resolve({
+              userId: "38db32a3-ef9b-40dd-a5fb-cd9ab4776016",
+              bearerToken: "test-new",
+            } satisfies AuthInfoDetails);
+          }, 2000);
+        } else {
+          const win = window as ModifiedWindow;
+          win.updateAuthDetails = (details: AuthInfoDetails) => {
+            resolve(details);
 
-          win.updateAuthDetails = (details: AuthDetails) =>
-            setAuthDetails({ status: AuthDetailsStatus.InUse, details });
-        };
+            win.updateAuthDetails = (details: AuthInfoDetails) =>
+              setAuthInfo({ status: AuthInfoStatus.InUse, details });
+          };
+        }
       }),
-    ])) as AuthDetails | false;
+    ])) as AuthInfoDetails | false;
     console.debug(
       details ? "Received auth details" : "Did not receive auth details in time"
     );
     if (details) {
-      setAuthDetails({
-        status: AuthDetailsStatus.InUse,
+      setAuthInfo({
+        status: AuthInfoStatus.InUse,
         details: details,
       });
     }
     return details;
   };
 
-  const submitPropt = async (
-    prompt: string,
-    messages: Message[],
-    retries = 0
-  ) => {
+  const submitPropt = async ({
+    prompt,
+    messages,
+    authInfo,
+    retries = 0,
+  }: {
+    prompt: string;
+    messages: Message[];
+    authInfo: AuthInfo;
+    retries?: number;
+  }): Promise<void> => {
     const MAX_RETRIES = 2;
 
     if (abortControllerRef.current) {
@@ -227,25 +248,44 @@ function App() {
       });
     };
 
-    let lastAuthDetails = authDetails;
-    if (lastAuthDetails.status !== AuthDetailsStatus.InUse) {
-      const details = await waitForAuthDetails();
-      if (!details) {
+    const handleAuthFailure = async () => {
+      console.debug(
+        "Retrying authentication, currently at",
+        retries,
+        "retries"
+      );
+      if (retries >= MAX_RETRIES) {
         setFailureMessages();
         return;
       }
-      lastAuthDetails = { status: AuthDetailsStatus.InUse, details };
+      return await submitPropt({
+        prompt,
+        messages: messages.filter(
+          (m) => m.id !== messagesIds.prompt && m.id !== messagesIds.response
+        ),
+        authInfo: { status: AuthInfoStatus.Invalid, details: null },
+        retries: retries + 1,
+      });
+    };
+
+    let lastAuthInfo = authInfo;
+    if (lastAuthInfo.status !== AuthInfoStatus.InUse) {
+      const details = await waitForAuthDetails();
+      if (!details) {
+        return await handleAuthFailure();
+      }
+      lastAuthInfo = { status: AuthInfoStatus.InUse, details };
     }
 
     try {
       const res = await fetch(
-        `${API_BASE_URL()}/${lastAuthDetails.details.userId}/answer`,
+        `${API_BASE_URL()}/${lastAuthInfo.details.userId}/answer`,
         {
           signal: abortControllerRef.current.signal,
           method: "POST",
           headers: new Headers({
             "Content-Type": "application/json",
-            Authorization: `Bearer ${authDetails.details!.bearerToken}`,
+            Authorization: `Bearer ${lastAuthInfo.details.bearerToken}`,
           }),
           body: JSON.stringify({
             is_streaming: true,
@@ -258,23 +298,7 @@ function App() {
       );
 
       if (res.status === 401) {
-        console.debug(
-          "Retrying authentication, currently at",
-          retries,
-          "retries"
-        );
-        setAuthDetails({ status: AuthDetailsStatus.Invalid, details: null });
-        if (retries >= MAX_RETRIES) {
-          setFailureMessages();
-          return;
-        }
-        return await submitPropt(
-          prompt,
-          messages.filter(
-            (m) => m.id !== messagesIds.prompt && m.id !== messagesIds.response
-          ),
-          retries + 1
-        );
+        return await handleAuthFailure();
       }
 
       if (!res.ok || !res.body) {
@@ -363,8 +387,8 @@ function App() {
   useEffect(() => {
     const win = window as ModifiedWindow;
     win.updateInfoModal = (innerHtml: string) => setInspirationHtml(innerHtml);
-    win.updateAuthDetails = (details: AuthDetails) =>
-      setAuthDetails({ status: AuthDetailsStatus.InUse, details });
+    win.updateAuthDetails = (details: AuthInfoDetails) =>
+      setAuthInfo({ status: AuthInfoStatus.InUse, details });
     win.setMessages = (exchangeMessages) => {
       setMessages(
         exchangeMessages.map((exchangeMessage) => {
@@ -496,7 +520,11 @@ function App() {
             onSubmit={(e) => {
               e.preventDefault();
               e.currentTarget.querySelector("textarea")!.value = "";
-              void submitPropt(prompt, messages);
+              void submitPropt({
+                prompt,
+                messages,
+                authInfo,
+              });
             }}
             className="overflow-hidden relative rounded-lg shadow-enai-drop"
           >
