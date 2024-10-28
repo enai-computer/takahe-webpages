@@ -159,22 +159,13 @@ function App() {
         setTimeout(() => resolve(false), TIME_LIMIT_MS);
       }),
       new Promise((resolve) => {
-        if (MOCK_WEBVIEW_ENV.enabled) {
-          setTimeout(() => {
-            resolve({
-              userId: "38db32a3-ef9b-40dd-a5fb-cd9ab4776016",
-              bearerToken: "test-new",
-            } satisfies AuthInfoDetails);
-          }, 2000);
-        } else {
-          const win = window as ModifiedWindow;
-          win.updateAuthDetails = (details: AuthInfoDetails) => {
-            resolve(details);
+        const win = window as ModifiedWindow;
+        win.updateAuthDetails = (details: AuthInfoDetails) => {
+          resolve(details);
 
-            win.updateAuthDetails = (details: AuthInfoDetails) =>
-              setAuthInfo({ status: AuthInfoStatus.InUse, details });
-          };
-        }
+          win.updateAuthDetails = (details: AuthInfoDetails) =>
+            setAuthInfo({ status: AuthInfoStatus.InUse, details });
+        };
       }),
     ])) as AuthInfoDetails | false;
     console.debug(
