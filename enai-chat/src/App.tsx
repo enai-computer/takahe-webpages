@@ -143,8 +143,8 @@ function App() {
       source: "enai-agent",
       version: 1,
       type: "token-request",
-      "sub-type":
-        authDetails.status === AuthDetailsStatus.NotSet ? "inital" : "refresh",
+      sub_type:
+        authDetails.status === AuthDetailsStatus.NotSet ? "initial" : "refresh",
     });
 
     console.debug("Waiting for auth details now...");
