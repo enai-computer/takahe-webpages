@@ -268,6 +268,34 @@ function App() {
       lastAuthInfo = { status: AuthInfoStatus.InUse, details };
     }
 
+    // fetching title of the chat
+    if (messages.length <= 1) {
+      try {
+        const res = await fetch(
+          `${API_BASE_URL()}/${lastAuthInfo.details.userId}/title?prompt=${encodeURIComponent(sanitizedPrompt)}`,
+          {
+            signal: abortControllerRef.current.signal,
+            method: "GET",
+            headers: new Headers({
+              Authorization: `Bearer ${lastAuthInfo.details.bearerToken}`,
+            })
+          }
+        );
+        if (res.status === 401) {
+          return await handleAuthFailure();
+        }
+        if (res.ok && res.body) {
+          const title = (await res.text()).trim().replace(/^"|"$/g, "");
+          document.title = title;
+        }
+      } catch (error) {
+        console.error(
+          "An error occurred while fetching a title for the users query",
+          error
+        );
+      }
+    }
+    // fetching response to user question
     try {
       const res = await fetch(
         `${API_BASE_URL()}/${lastAuthInfo.details.userId}/answer`,
@@ -430,9 +458,9 @@ function App() {
 
   return (
     <div className="h-dvh px-[8px] py-[12px] md:p-[80px] md:pt-0 flex justify-center">
-      <div className="fixed inset-0 flex items-center justify-center -z-10">
+      {messages.length <= 1 && (<div className="fixed inset-0 flex items-center justify-center -z-10">
         <IconEveMark className="text-sand-6" />
-      </div>
+      </div>)}
 
       <div className="w-full md:max-w-[700px] flex flex-col justify-between h-full">
         <div
