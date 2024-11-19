@@ -103,3 +103,37 @@
   display: none;
   scrollbar-width: none;
 }
+
+@media (prefers-color-scheme: dark) {
+  .bg-sand-2 {
+    @apply bg-sand-12;
+  }
+  
+  .text-sand-12 {
+    @apply text-sand-2;
+  }
+  
+  .text-sand-11 {
+    @apply text-sand-3;
+  }
+  
+  .text-sand-9 {
+    @apply text-sand-5;
+  }
+  
+  .text-sand-6 {
+    @apply text-sand-8;
+  }
+  
+  .response pre > code {
+    @apply bg-sand-11 text-sand-2;
+  }
+  
+  textarea {
+    @apply bg-sand-11 text-sand-2;
+  }
+  
+  form {
+    @apply bg-sand-11;
+  }
+}
