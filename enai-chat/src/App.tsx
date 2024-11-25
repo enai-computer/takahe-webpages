@@ -14,6 +14,7 @@ const API_VERSION = "/v1";
 type ModifiedWindow = Window &
   typeof globalThis & {
     API_BASE_HOST: string;
+    setAvailableModels(models: AiModel[]): void;
     updateInfoModal?(innerHtml: string): void;
     updateAuthDetails?(details: AuthInfoDetails): void;
     getMessages?(): ExchangeMessage[];
@@ -33,6 +34,12 @@ enum ExchangeMessageRole {
 interface ExchangeMessage {
   role: ExchangeMessageRole;
   content: string;
+}
+
+interface AiModel {
+  id: string;
+  name: string;
+  description: string;
 }
 
 interface AuthInfoDetails {
@@ -84,6 +91,10 @@ const MOCK_WEBVIEW_ENV = {
     userId: "38db32a3-ef9b-40dd-a5fb-cd9ab4776016",
     bearerToken: "test",
   } satisfies AuthInfoDetails,
+  availableModels: [
+      {id: "gpt-4o", name: "OpenAI GPT-4o", description: "The latest model from OpenAI"},
+      {id: "o1-preview", name: "OpenAI o1", description: "OpenAI's reasoning model designed to solve hard problems across domains."},
+    ] satisfies AiModel[],
 } as const;
 
 /** Max messages to send to the backend as context. */
@@ -134,6 +145,15 @@ function App() {
   const [messages, setMessages] = useState<Message[]>([]);
 
   const deferredInputStyle = useDeferredValue(inputStyle);
+
+  // Add new state for managing dropdown
+  const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
+  const [availableModels, setAvailableModels] = useState<AiModel[]>([]);
+  const [selectedModel, setSelectedModel] = useState<AiModel>({
+    id: "gpt-4o", 
+    name: "OpenAI GPT-4o", 
+    description: "The latest standard model from OpenAI"
+  });
 
   /**
    * @returns Either the new auth details, or `false` in case it failed.
@@ -309,6 +329,7 @@ function App() {
           body: JSON.stringify({
             is_streaming: true,
             question: sanitizedPrompt,
+            model_id: selectedModel.id,
             messages: messages
               .slice(messages.length - MAX_CONTEXT_MESSAGES_LENGTH)
               .map(convertMessageToExchangeMessage),
@@ -423,9 +444,11 @@ function App() {
         })
       );
     };
+    win.setAvailableModels = (models) => setAvailableModels(models);
 
     if (MOCK_WEBVIEW_ENV.enabled) {
       win.API_BASE_HOST = MOCK_WEBVIEW_ENV.baseUrl;
+      win.setAvailableModels(MOCK_WEBVIEW_ENV.availableModels);
       win.updateInfoModal(MOCK_WEBVIEW_ENV.inspiration);
       win.updateAuthDetails?.(MOCK_WEBVIEW_ENV.authDetails);
     } else {
@@ -592,16 +615,39 @@ function App() {
             </div>
           </form>
 
-          <div
-            className={twMerge(
-              "text-center mt-3 text-sm font-light text-sand-9 md:block hidden",
-
-              /* Takes the text itself out of the flex alignment. */
-              "-mb-[20px]"
+          <div className="relative md:block hidden">
+            <button
+              onClick={() => setIsModelSelectorOpen(!isModelSelectorOpen)}
+              className="w-full text-center mt-3 text-sm font-light text-sand-9 hover:text-sand-11 transition-colors"
+            >
+              Model: <strong className="font-medium">{selectedModel?.name || "Loading..."}</strong>
+              <span className="ml-1 inline-block transition-transform duration-200" style={{ transform: isModelSelectorOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
+            </button>
+            
+            {isModelSelectorOpen && availableModels.length > 0 && (
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-white rounded-lg shadow-lg p-2 min-w-[200px]">
+                {availableModels.map((model) => (
+                  <button
+                    key={model.id}
+                    onClick={() => {
+                      setSelectedModel(model);
+                      setIsModelSelectorOpen(false);
+                    }}
+                    className={twMerge(
+                      "w-full text-left px-3 py-2 rounded hover:bg-sand-3 transition-colors group relative",
+                      selectedModel?.id === model.id ? "bg-sand-4" : ""
+                    )}
+                  >
+                    <div className="font-medium">{model.name}</div>
+                    <div className="absolute invisible group-hover:visible bg-white shadow-lg rounded-lg p-3 z-10 left-full top-0 ml-2 w-[250px] text-xs text-sand-11">
+                      {model.description}
+                    </div>
+                  </button>
+                ))}
+              </div>
             )}
-          >
-            Model: <strong className="font-medium">ChatGPT o1 (latest)</strong>
           </div>
+         
         </div>
       </div>
     </div>
