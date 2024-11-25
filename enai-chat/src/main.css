@@ -104,27 +104,66 @@
   scrollbar-width: none;
 }
 
+
 @media (prefers-color-scheme: dark) {
+
+  /* 
+   * background
+   */
+  .bg-sand-1 {
+    @apply bg-sand-dark-1;
+  }
+
   .bg-sand-2 {
-    @apply bg-sand-12;
+    @apply bg-sand-dark-2;
   }
-  
-  .text-sand-12 {
-    @apply text-sand-2;
+
+  .bg-sand-3 {
+    @apply bg-sand-dark-3;
   }
-  
-  .text-sand-11 {
-    @apply text-sand-3;
+
+  .bg-sand-4 {
+    @apply bg-sand-dark-4;
   }
-  
-  .text-sand-9 {
-    @apply text-sand-5;
+
+  .bg-sand-5 {
+    @apply bg-sand-dark-5;
   }
-  
+
+  .bg-sand-6 {
+    @apply bg-sand-dark-6;
+  }
+
+  .bg-sand-7 {
+    @apply bg-sand-dark-7;
+  }
+
+  /* 
+   * text 
+   */
   .text-sand-6 {
-    @apply text-sand-8;
+    @apply text-sand-dark-6;
   }
-  
+
+  .text-sand-9 {
+    @apply text-sand-dark-9;
+  }
+
+  .text-sand-11 {
+    @apply text-sand-dark-11;
+  }
+
+  .text-sand-12 {
+    @apply text-sand-dark-12;
+  }
+
+  /* 
+   * border
+   */
+  .border-sand-6 {
+    @apply border-sand-dark-6;
+  }
+    
   .response pre > code {
     @apply bg-sand-11 text-sand-2;
   }
@@ -137,3 +176,4 @@
     @apply bg-sand-11;
   }
 }
+

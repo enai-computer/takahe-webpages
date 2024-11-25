@@ -625,7 +625,7 @@ function App() {
             </button>
             
             {isModelSelectorOpen && availableModels.length > 0 && (
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-white rounded-lg shadow-lg p-2 min-w-[200px]">
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-sand-1 border border-sand-6 rounded-lg shadow-lg p-2 min-w-[200px]">
                 {availableModels.map((model) => (
                   <button
                     key={model.id}
@@ -635,11 +635,11 @@ function App() {
                     }}
                     className={twMerge(
                       "w-full text-left px-3 py-2 rounded hover:bg-sand-3 transition-colors group relative",
-                      selectedModel?.id === model.id ? "bg-sand-4" : ""
+                      selectedModel?.id === model.id ? "bg-sand-4 text-sand-12 hover:text-sand-12" : "text-sand-11.5 hover:text-sand-11.5"
                     )}
                   >
                     <div className="font-medium">{model.name}</div>
-                    <div className="absolute invisible group-hover:visible bg-white shadow-lg rounded-lg p-3 z-10 left-full top-0 ml-2 w-[250px] text-xs text-sand-11">
+                    <div className="absolute invisible group-hover:visible bg-sand-1 border border-sand-6 shadow-lg rounded-lg p-3 z-10 left-full top-0 ml-2 w-[250px] text-xs text-sand-11">
                       {model.description}
                     </div>
                   </button>
