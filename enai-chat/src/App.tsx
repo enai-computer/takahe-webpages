@@ -17,6 +17,7 @@ type ModifiedWindow = Window &
     setAvailableModels(models: AiModel[]): void;
     updateInfoModal?(innerHtml: string): void;
     updateAuthDetails?(details: AuthInfoDetails): void;
+    setContext?(context: string[]): void;
     getMessages?(): ExchangeMessage[];
     setMessages?(messages: ExchangeMessage[]): void;
   };
@@ -143,7 +144,7 @@ function App() {
   });
 
   const [messages, setMessages] = useState<Message[]>([]);
-
+  const [context, setContext] = useState<string[]>([]);
   const deferredInputStyle = useDeferredValue(inputStyle);
 
   // Add new state for managing dropdown
@@ -330,6 +331,7 @@ function App() {
             is_streaming: true,
             question: sanitizedPrompt,
             model_id: selectedModel.id,
+            context: context,
             messages: messages
               .slice(messages.length - MAX_CONTEXT_MESSAGES_LENGTH)
               .map(convertMessageToExchangeMessage),
@@ -444,6 +446,9 @@ function App() {
         })
       );
     };
+    win.setContext = (context) => {
+      setContext(context);
+    }
     win.setAvailableModels = (models) => setAvailableModels(models);
 
     if (MOCK_WEBVIEW_ENV.enabled) {
@@ -459,10 +464,18 @@ function App() {
         version: 1,
         type: "request-history",
       });
+      /* @ts-expect-error webkit */
+      // eslint-disable-next-line
+      window.webkit.messageHandlers.en_ai_handler.postMessage({
+        source: "enai-agent",
+        version: 1,
+        type: "request-context",
+      });
     }
 
     return () => {
       delete win.setMessages;
+      delete win.setContext;
       delete win.updateInfoModal;
       delete win.updateAuthDetails;
     };
