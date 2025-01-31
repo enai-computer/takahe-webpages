@@ -41,6 +41,7 @@ interface AiModel {
   id: string;
   name: string;
   description: string;
+  token_limit: number;
 }
 
 interface AuthInfoDetails {
@@ -93,8 +94,9 @@ const MOCK_WEBVIEW_ENV = {
     bearerToken: "test",
   } satisfies AuthInfoDetails,
   availableModels: [
-      {id: "gpt-4o", name: "OpenAI GPT-4o", description: "The latest model from OpenAI"},
-      {id: "o1-preview", name: "OpenAI o1", description: "OpenAI's reasoning model designed to solve hard problems across domains."},
+      {id: "claude-3-5-sonnet", name: "Claude 3.5 Sonnet", description: "Anthropic's latest model.", token_limit: 75000},
+      {id: "gpt-4o", name: "OpenAI GPT-4o", description: "The latest model from OpenAI", token_limit: 28000},
+      {id: "o1-preview", name: "OpenAI o1", description: "OpenAI's reasoning model designed to solve hard problems across domains.", token_limit: 0},
     ] satisfies AiModel[],
 } as const;
 
@@ -151,9 +153,10 @@ function App() {
   const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
   const [availableModels, setAvailableModels] = useState<AiModel[]>([]);
   const [selectedModel, setSelectedModel] = useState<AiModel>({
-    id: "gpt-4o", 
-    name: "OpenAI GPT-4o", 
-    description: "The latest standard model from OpenAI"
+    id: "claude-3-5-sonnet", 
+    name: "Claude 3.5 Sonnet", 
+    description: "Anthropic's latest model.",
+    token_limit: 75000
   });
 
   /**
@@ -470,6 +473,7 @@ function App() {
         source: "enai-agent",
         version: 1,
         type: "request-context",
+        token_limit: selectedModel.token_limit,
       });
     }
 
@@ -645,6 +649,16 @@ function App() {
                     onClick={() => {
                       setSelectedModel(model);
                       setIsModelSelectorOpen(false);
+                      if (!MOCK_WEBVIEW_ENV.enabled) {
+                        /* @ts-expect-error webkit */
+                        // eslint-disable-next-line
+                        window.webkit.messageHandlers.en_ai_handler.postMessage({
+                          source: "enai-agent",
+                          version: 1,
+                          type: "request-context",
+                          token_limit: model.token_limit,
+                        });
+                      }
                     }}
                     className={twMerge(
                       "w-full text-left px-3 py-2 rounded hover:bg-sand-3 transition-colors group relative",
