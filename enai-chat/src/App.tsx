@@ -5,116 +5,21 @@ import {
   useRef,
   useState,
 } from "react";
-import Markdown from "react-markdown";
+// import Markdown from "react-markdown";
 import { twMerge } from "tailwind-merge";
 import { IconEveMark } from "./components/icons/IconEveMark";
-
-const API_VERSION = "/v1";
-
-type ModifiedWindow = Window &
-  typeof globalThis & {
-    API_BASE_HOST: string;
-    setAvailableModels(models: AiModel[]): void;
-    updateInfoModal?(innerHtml: string): void;
-    updateAuthDetails?(details: AuthInfoDetails): void;
-    setContext?(context: string[]): void;
-    getMessages?(): ExchangeMessage[];
-    setMessages?(messages: ExchangeMessage[]): void;
-  };
+import { AuthInfo, AuthInfoDetails, AuthInfoStatus, ExchangeMessage, ExchangeMessageRole, Message, MessageType, AiModel} from "./models";
+import { ChatInput } from "./components/ChatInput";
+import { ModelSelector } from "./components/ModelSelector";
+import { ChatMessage } from "./components/ChatMessage";
+import { API_VERSION, INPUT_STYLE_CONFIG, MAX_CONTEXT_MESSAGES_LENGTH, MOCK_WEBVIEW_ENV } from "./utils/config";
+import { ModifiedWindow, SubmitPromptParams } from "./utils/types";
+import { waitForAuthDetails } from "./api/auth";
 
 const API_BASE_URL = (): string => {
   const win = window as ModifiedWindow;
   return win.API_BASE_HOST + API_VERSION;
 };
-
-enum ExchangeMessageRole {
-  User = "user",
-  Assistant = "assistant",
-}
-
-interface ExchangeMessage {
-  role: ExchangeMessageRole;
-  content: string;
-}
-
-interface AiModel {
-  id: string;
-  name: string;
-  description: string;
-  token_limit: number;
-}
-
-interface AuthInfoDetails {
-  userId: string;
-  bearerToken: string;
-}
-
-enum AuthInfoStatus {
-  NotSet = "NOT_SET",
-  Invalid = "INVALID",
-  InUse = "IN_USE",
-}
-
-type AuthInfo =
-  | {
-      status: AuthInfoStatus.NotSet | AuthInfoStatus.Invalid;
-      details: null;
-    }
-  | {
-      status: AuthInfoStatus.InUse;
-      details: AuthInfoDetails;
-    };
-
-enum MessageType {
-  Prompt = "PROMPT",
-  Response = "RESPONSE",
-}
-
-interface Message {
-  id: string;
-  isLoading: boolean;
-  type: MessageType;
-  text: string;
-}
-
-/**
- * @dev If you are testing this web app
- * without the Enai wrapper around it,
- * set this to `enabled: true`.
- * It will then mock the necessary `window`
- * function calls.
- */
-const MOCK_WEBVIEW_ENV = {
-  enabled: false,
-  baseUrl: "http://127.0.0.1:8000",
-  inspiration:
-    "Balancing sweet, salty, sour, bitter, and umami flavors is key to making delicious and memorable dishes.",
-  authDetails: {
-    userId: "38db32a3-ef9b-40dd-a5fb-cd9ab4776016",
-    bearerToken: "test",
-  } satisfies AuthInfoDetails,
-  availableModels: [
-      {id: "claude-3-5-sonnet", name: "Claude 3.5 Sonnet", description: "Anthropic's latest model.", token_limit: 75000},
-      {id: "gpt-4o", name: "OpenAI GPT-4o", description: "The latest model from OpenAI", token_limit: 28000},
-      {id: "o1-preview", name: "OpenAI o1", description: "OpenAI's reasoning model designed to solve hard problems across domains.", token_limit: 0},
-    ] satisfies AiModel[],
-} as const;
-
-/** Max messages to send to the backend as context. */
-const MAX_CONTEXT_MESSAGES_LENGTH = 20;
-
-const INPUT_STYLE_CONFIG = {
-  maxHeight: 300,
-  initialHeight: 57,
-  lineHeight: {
-    normal: 27,
-    small: 24,
-  },
-  fontSize: {
-    normal: 21,
-    small: 18,
-  },
-} as const;
 
 const convertMessageToExchangeMessage = (message: Message): ExchangeMessage => {
   return {
@@ -161,60 +66,55 @@ function App() {
 
   /**
    * @returns Either the new auth details, or `false` in case it failed.
-   */
-  const waitForAuthDetails = async (): Promise<AuthInfoDetails | false> => {
-    const TIME_LIMIT_MS = 10_000;
+  //  */
+  // const waitForAuthDetails = async (): Promise<AuthInfoDetails | false> => {
+  //   const TIME_LIMIT_MS = 10_000;
 
-    if (!MOCK_WEBVIEW_ENV.enabled) {
-      /* @ts-expect-error webkit */
-      // eslint-disable-next-line
-      window.webkit.messageHandlers.en_ai_handler.postMessage({
-        source: "enai-agent",
-        version: 1,
-        type: "token-request",
-        sub_type:
-          authInfo.status === AuthInfoStatus.NotSet ? "initial" : "refresh",
-      });
-    }
+  //   if (!MOCK_WEBVIEW_ENV.enabled) {
+  //     /* @ts-expect-error webkit */
+  //     // eslint-disable-next-line
+  //     window.webkit.messageHandlers.en_ai_handler.postMessage({
+  //       source: "enai-agent",
+  //       version: 1,
+  //       type: "token-request",
+  //       sub_type:
+  //         authInfo.status === AuthInfoStatus.NotSet ? "initial" : "refresh",
+  //     });
+  //   }
 
-    console.debug("Waiting for auth details now...");
-    const details = (await Promise.race([
-      new Promise((resolve) => {
-        setTimeout(() => resolve(false), TIME_LIMIT_MS);
-      }),
-      new Promise((resolve) => {
-        const win = window as ModifiedWindow;
-        win.updateAuthDetails = (details: AuthInfoDetails) => {
-          resolve(details);
+  //   console.debug("Waiting for auth details now...");
+  //   const details = (await Promise.race([
+  //     new Promise((resolve) => {
+  //       setTimeout(() => resolve(false), TIME_LIMIT_MS);
+  //     }),
+  //     new Promise((resolve) => {
+  //       const win = window as ModifiedWindow;
+  //       win.updateAuthDetails = (details: AuthInfoDetails) => {
+  //         resolve(details);
 
-          win.updateAuthDetails = (details: AuthInfoDetails) =>
-            setAuthInfo({ status: AuthInfoStatus.InUse, details });
-        };
-      }),
-    ])) as AuthInfoDetails | false;
-    console.debug(
-      details ? "Received auth details" : "Did not receive auth details in time"
-    );
-    if (details) {
-      setAuthInfo({
-        status: AuthInfoStatus.InUse,
-        details: details,
-      });
-    }
-    return details;
-  };
+  //         win.updateAuthDetails = (details: AuthInfoDetails) =>
+  //           setAuthInfo({ status: AuthInfoStatus.InUse, details });
+  //       };
+  //     }),
+  //   ])) as AuthInfoDetails | false;
+  //   console.debug(
+  //     details ? "Received auth details" : "Did not receive auth details in time"
+  //   );
+  //   if (details) {
+  //     setAuthInfo({
+  //       status: AuthInfoStatus.InUse,
+  //       details: details,
+  //     });
+  //   }
+  //   return details;
+  // };
 
   const submitPropt = async ({
     prompt,
     messages,
     authInfo,
     retries = 0,
-  }: {
-    prompt: string;
-    messages: Message[];
-    authInfo: AuthInfo;
-    retries?: number;
-  }): Promise<void> => {
+  }: SubmitPromptParams): Promise<void> => {
     const MAX_RETRIES = 2;
 
     if (abortControllerRef.current) {
@@ -285,7 +185,7 @@ function App() {
 
     let lastAuthInfo = authInfo;
     if (lastAuthInfo.status !== AuthInfoStatus.InUse) {
-      const details = await waitForAuthDetails();
+      const details = await waitForAuthDetails(setAuthInfo);
       if (!details) {
         return await handleAuthFailure();
       }
@@ -483,7 +383,7 @@ function App() {
       delete win.updateInfoModal;
       delete win.updateAuthDetails;
     };
-  }, []);
+  }, [selectedModel.token_limit]);
 
   useEffect(() => {
     const win = window as ModifiedWindow;
@@ -533,148 +433,50 @@ function App() {
             </p>
           ) : (
             <div className="space-y-5">
-              {messages.map((message, i) => {
-                return (
-                  <div
-                    key={message.id}
-                    className={twMerge(
-                      "relative w-full",
-                      message.type === MessageType.Prompt
-                        ? "font-signifier text-[21px] leading-[27px] text-right tracking-[-.63px] italic font-light text-sand-11 pr-[3px]"
-                        : "text-[17px] leading-[22px] tracking-[0.17px]",
-                      i === 0 ? "mt-[30px] md:mt-[80px]" : ""
-                    )}
-                  >
-                    {message.type === MessageType.Response ? (
-                      <div className="absolute -ml-8 mt-1">
-                        <IconEveMark
-                          className={twMerge(
-                            "w-7 duration-200",
-                            message.isLoading
-                              ? "text-birkin"
-                              : i === messages.length - 1
-                              ? "text-sand-9"
-                              : "text-sand-6"
-                          )}
-                        />
-                      </div>
-                    ) : null}
-                    {message.type === MessageType.Prompt ? (
-                      <p className="whitespace-pre-wrap">{message.text}</p>
-                    ) : (
-                      <div className="response">
-                        <Markdown>{message.text}</Markdown>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+              {messages.map((message, i) => (
+                <ChatMessage
+                  key={message.id}
+                  message={message}
+                  isFirst={i === 0}
+                />
+              ))}
             </div>
           )}
         </div>
 
         <div>
-          <form
-            ref={inputFormRef}
+          <ChatInput
+            prompt={prompt}
             onSubmit={(e) => {
               e.preventDefault();
               e.currentTarget.querySelector("textarea")!.value = "";
-              void submitPropt({
-                prompt,
-                messages,
-                authInfo,
-              });
+              void submitPropt({ prompt, messages, authInfo });
             }}
-            className="overflow-hidden relative rounded-lg shadow-enai-drop"
-          >
-            <div className="bg-white rounded-lg max-h-[300px] overflow-hidden">
-              <textarea
-                ref={textareaRef}
-                rows={1}
-                className={twMerge(
-                  "px-[20px] py-[15px] h-full focus:outline-none resize-none duration-200 font-signifier font-light outline-none w-full scrollbar-webkit-none"
-                )}
-                style={deferredInputStyle}
-                placeholder="Ask Enai"
-                onChange={onInputChange}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    inputFormRef.current?.requestSubmit();
-                    e.preventDefault();
-                    onInputChange(e);
-                  }
-                }}
-              />
-            </div>
+            onInputChange={onInputChange}
+            inputStyle={deferredInputStyle}
+            textareaRef={textareaRef}
+            inputFormRef={inputFormRef}
+          />
 
-            <div className="absolute right-0 bottom-0 flex items-center h-[57px]">
-              <button
-                type="submit"
-                className={twMerge(
-                  "duration-200 p-3 rounded-full h-6 w-6 flex justify-center items-center flex-shrink-0 mr-[20px]",
-                  prompt ? "bg-birkin" : "bg-sand-7"
-                )}
-              >
-                <svg
-                  className={twMerge("flex-none ml-[1px] text-white")}
-                  width="8"
-                  height="13"
-                  viewBox="0 0 8 13"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M1.09375 12.7273L0 11.6477L4.50284 7.14489V5.58239L0 1.09375L1.09375 0L7.45739 6.36364L1.09375 12.7273Z"
-                    fill="currentColor"
-                  />
-                </svg>
-              </button>
-            </div>
-          </form>
-
-          <div className="relative md:block hidden">
-            <button
-              onClick={() => setIsModelSelectorOpen(!isModelSelectorOpen)}
-              className="w-full text-center mt-3 text-sm font-light text-sand-9 hover:text-sand-11 transition-colors"
-            >
-              Model: <strong className="font-medium">{selectedModel?.name || "Loading..."}</strong>
-              <span className="ml-1 inline-block transition-transform duration-200" style={{ transform: isModelSelectorOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
-            </button>
-            
-            {isModelSelectorOpen && availableModels.length > 0 && (
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-sand-1 border border-sand-6 rounded-lg shadow-lg p-2 min-w-[200px]">
-                {availableModels.map((model) => (
-                  <button
-                    key={model.id}
-                    onClick={() => {
-                      setSelectedModel(model);
-                      setIsModelSelectorOpen(false);
-                      if (!MOCK_WEBVIEW_ENV.enabled) {
-                        /* @ts-expect-error webkit */
-                        // eslint-disable-next-line
-                        window.webkit.messageHandlers.en_ai_handler.postMessage({
-                          source: "enai-agent",
-                          version: 1,
-                          type: "request-context",
-                          token_limit: model.token_limit,
-                        });
-                      }
-                    }}
-                    className={twMerge(
-                      "w-full text-left px-3 py-2 rounded hover:bg-sand-3 transition-colors group relative",
-                      selectedModel?.id === model.id ? "bg-sand-4 text-sand-12 hover:text-sand-12" : "text-sand-11.5 hover:text-sand-11.5"
-                    )}
-                  >
-                    <div className="font-medium">{model.name}</div>
-                    <div className="absolute invisible group-hover:visible bg-sand-1 border border-sand-6 shadow-lg rounded-lg p-3 z-10 left-full top-0 ml-2 w-[250px] text-xs text-sand-11">
-                      {model.description}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-         
+          <ModelSelector
+            isOpen={isModelSelectorOpen}
+            availableModels={availableModels}
+            selectedModel={selectedModel}
+            onSelectModel={setSelectedModel}
+            onRequestContext={(tokenLimit) => {
+              if (!MOCK_WEBVIEW_ENV.enabled) {
+                /* @ts-expect-error webkit */
+                // eslint-disable-next-line
+                window.webkit.messageHandlers.en_ai_handler.postMessage({
+                  source: "enai-agent",
+                  version: 1,
+                  type: "request-context",
+                  token_limit: tokenLimit,
+                });
+              }
+            }}
+            onToggle={() => setIsModelSelectorOpen(!isModelSelectorOpen)}
+          />
         </div>
       </div>
     </div>
