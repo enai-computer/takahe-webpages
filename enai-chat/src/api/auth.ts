@@ -2,7 +2,10 @@ import { AuthInfo, AuthInfoDetails, AuthInfoStatus } from "../models";
 import { MOCK_WEBVIEW_ENV } from "../utils/config";
 import { ModifiedWindow } from "../utils/types";
 
-export const waitForAuthDetails = async (setAuthInfo: (info: AuthInfo) => void): Promise<AuthInfoDetails | false> => {
+  /**
+   * @returns Either the new auth details, or `false` in case it failed.
+   */
+export const waitForAuthDetails = async (setAuthInfo: (info: AuthInfo) => void, authInfo: AuthInfo): Promise<AuthInfoDetails | false> => {
   const TIME_LIMIT_MS = 10_000;
 
   if (!MOCK_WEBVIEW_ENV.enabled) {
@@ -12,7 +15,7 @@ export const waitForAuthDetails = async (setAuthInfo: (info: AuthInfo) => void):
       source: "enai-agent",
       version: 1,
       type: "token-request",
-      sub_type: "initial",
+      sub_type: authInfo.status === AuthInfoStatus.NotSet ? "initial" : "refresh",
     });
   }
 

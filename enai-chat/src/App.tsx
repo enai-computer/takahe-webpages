@@ -64,51 +64,6 @@ function App() {
     token_limit: 75000
   });
 
-  /**
-   * @returns Either the new auth details, or `false` in case it failed.
-  //  */
-  // const waitForAuthDetails = async (): Promise<AuthInfoDetails | false> => {
-  //   const TIME_LIMIT_MS = 10_000;
-
-  //   if (!MOCK_WEBVIEW_ENV.enabled) {
-  //     /* @ts-expect-error webkit */
-  //     // eslint-disable-next-line
-  //     window.webkit.messageHandlers.en_ai_handler.postMessage({
-  //       source: "enai-agent",
-  //       version: 1,
-  //       type: "token-request",
-  //       sub_type:
-  //         authInfo.status === AuthInfoStatus.NotSet ? "initial" : "refresh",
-  //     });
-  //   }
-
-  //   console.debug("Waiting for auth details now...");
-  //   const details = (await Promise.race([
-  //     new Promise((resolve) => {
-  //       setTimeout(() => resolve(false), TIME_LIMIT_MS);
-  //     }),
-  //     new Promise((resolve) => {
-  //       const win = window as ModifiedWindow;
-  //       win.updateAuthDetails = (details: AuthInfoDetails) => {
-  //         resolve(details);
-
-  //         win.updateAuthDetails = (details: AuthInfoDetails) =>
-  //           setAuthInfo({ status: AuthInfoStatus.InUse, details });
-  //       };
-  //     }),
-  //   ])) as AuthInfoDetails | false;
-  //   console.debug(
-  //     details ? "Received auth details" : "Did not receive auth details in time"
-  //   );
-  //   if (details) {
-  //     setAuthInfo({
-  //       status: AuthInfoStatus.InUse,
-  //       details: details,
-  //     });
-  //   }
-  //   return details;
-  // };
-
   const submitPropt = async ({
     prompt,
     messages,
@@ -185,7 +140,7 @@ function App() {
 
     let lastAuthInfo = authInfo;
     if (lastAuthInfo.status !== AuthInfoStatus.InUse) {
-      const details = await waitForAuthDetails(setAuthInfo);
+      const details = await waitForAuthDetails(setAuthInfo, authInfo);
       if (!details) {
         return await handleAuthFailure();
       }
