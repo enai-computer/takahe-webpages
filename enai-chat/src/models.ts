@@ -40,6 +40,7 @@ export type AuthInfo =
 export enum MessageType {
   Prompt = "PROMPT",
   Response = "RESPONSE",
+  Applet = "APPLET",
 }
 
 export interface Message {
