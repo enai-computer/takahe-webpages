@@ -5,8 +5,9 @@ import {
   useRef,
   useState,
 } from "react";
+import { Slot } from "@radix-ui/react-slot";
+import * as ScrollArea from "@radix-ui/react-scroll-area";
 // import Markdown from "react-markdown";
-import { twMerge } from "tailwind-merge";
 import { IconEveMark } from "./components/icons/IconEveMark";
 import { AuthInfo, AuthInfoDetails, AuthInfoStatus, ExchangeMessage, ExchangeMessageRole, Message, MessageType, AiModel} from "./models";
 import { ChatInput } from "./components/ChatInput";
@@ -228,6 +229,35 @@ function App() {
   };
 
   useEffect(() => {
+    if (
+      MOCK_WEBVIEW_ENV.enabled &&
+      authInfo.status === AuthInfoStatus.InUse &&
+      authInfo.details
+    ) {
+      const fetchModels = async () => {
+        try {
+          const res = await fetch(
+            `${API_BASE_URL()}/${authInfo.details.userId}/ai-models`,
+            { method: "GET" }
+          );
+          if (!res.ok) {
+            console.error("Failed to fetch available models:", res.statusText);
+            return;
+          }
+          const { models } = await res.json();
+          setAvailableModels(models);
+        } catch (error) {
+          console.error("Error fetching available models:", error);
+        }
+      };
+
+      fetchModels();
+    }
+  }, [authInfo]);
+
+
+
+  useEffect(() => {
     if (!chatRef.current || !isChatAttached) return;
     chatRef.current.scrollTop = chatRef.current.scrollHeight;
   }, [messages, isChatAttached]);
@@ -352,89 +382,139 @@ function App() {
   }, [messages]);
 
   return (
-    <div className="h-dvh px-[8px] py-[12px] md:p-[80px] md:pt-0 flex justify-center">
-      {messages.length <= 1 && (<div className="fixed inset-0 flex items-center justify-center -z-10">
-        <IconEveMark className="text-sand-6" />
-      </div>)}
-
-      <div className="w-full md:max-w-[700px] flex flex-col justify-between h-full">
-        <div
-          ref={chatRef}
-          id="chat"
-          className="overflow-y-auto mb-5 md:-ml-8 pl-[calc(2rem+8px)] pr-[8px] h-full scrollbar-styled"
-          onScroll={(e) => {
-            const GRACE_SCROLL_PX = 5;
-            const isScrolledToBottom =
-              Math.abs(
-                e.currentTarget.scrollHeight -
-                  e.currentTarget.scrollTop -
-                  e.currentTarget.clientHeight
-              ) < GRACE_SCROLL_PX;
-            setIsChatAttached(isScrolledToBottom);
+    <Slot
+      style={{
+        height: "100vh",
+        padding: "12px 8px",
+        display: "flex",
+        justifyContent: "center",
+      }}
+    >
+      <div>
+        {messages.length <= 1 && (
+          <Slot
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: -10,
+            }}
+          >
+            <IconEveMark style={{ color: "var(--sand-6)" }} />
+          </Slot>
+        )}
+        <Slot
+          style={{
+            width: "100%",
+            maxWidth: "700px",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "100%",
           }}
         >
-          {messages.length === 0 ? (
-            <p
-              className={twMerge(
-                "text-lg duration-200 mt-[30px] md:mt-[80px]",
-                prompt ? "opacity-20" : ""
-              )}
+          <div>
+            <ScrollArea.Root
+              ref={chatRef as React.RefObject<HTMLDivElement>}
+              id="chat"
+              style={{
+                overflowY: "auto",
+                marginBottom: "20px", // mb-5 (approx 20px)
+                paddingLeft: "calc(2rem + 8px)",
+                paddingRight: "8px",
+                height: "100%",
+              }}
+              onScroll={(e) => {
+                const GRACE_SCROLL_PX = 5;
+                const isScrolledToBottom =
+                  Math.abs(
+                    e.currentTarget.scrollHeight -
+                      e.currentTarget.scrollTop -
+                      e.currentTarget.clientHeight
+                  ) < GRACE_SCROLL_PX;
+                setIsChatAttached(isScrolledToBottom);
+              }}
             >
-              {inspirationHtml ? (
-                <span dangerouslySetInnerHTML={{ __html: inspirationHtml }} />
-              ) : (
-                <span>Thinking...</span>
-              )}
-            </p>
-          ) : (
-            <div className="space-y-5">
-              {messages.map((message, i) => (
-                <ChatMessage
-                  key={message.id}
-                  message={message}
-                  isFirst={i === 0}
-                />
-              ))}
+              <ScrollArea.Viewport style={{ width: "100%", height: "100%" }}>
+                {messages.length === 0 ? (
+                  <div
+                    style={{
+                      fontSize: "1.125rem", // text-lg
+                      transition: "all 200ms", 
+                      marginTop: "30px", // default mt-[30px] (ignoring md adjustment)
+                      opacity: prompt ? 0.2 : 1,
+                    }}
+                  >
+                    {inspirationHtml ? (
+                      <span
+                        dangerouslySetInnerHTML={{ __html: inspirationHtml }}
+                      />
+                    ) : (
+                      <span>Thinking...</span>
+                    )}
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "1.25rem", // space-y-5 approximated as 1.25rem gap
+                    }}
+                  >
+                    {messages.map((message, i) => (
+                      <ChatMessage
+                        key={message.id}
+                        message={message}
+                        isFirst={i === 0}
+                      />
+                    ))}
+                  </div>
+                )}
+              </ScrollArea.Viewport>
+            </ScrollArea.Root>
+
+            <div>
+              <ChatInput
+                prompt={prompt}
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  e.currentTarget.querySelector("textarea")!.value = "";
+                  void submitPropt({ prompt, messages, authInfo });
+                }}
+                onInputChange={onInputChange}
+                inputStyle={deferredInputStyle}
+                textareaRef={textareaRef}
+                inputFormRef={inputFormRef}
+              />
+
+              <ModelSelector
+                isOpen={isModelSelectorOpen}
+                availableModels={availableModels}
+                selectedModel={selectedModel}
+                onSelectModel={setSelectedModel}
+                onRequestContext={(tokenLimit) => {
+                  if (!MOCK_WEBVIEW_ENV.enabled) {
+                    /* @ts-expect-error webkit */
+                    window.webkit.messageHandlers.en_ai_handler.postMessage({
+                      source: "enai-agent",
+                      version: 1,
+                      type: "request-context",
+                      token_limit: tokenLimit,
+                    });
+                  }
+                }}
+                onToggle={() => setIsModelSelectorOpen(!isModelSelectorOpen)}
+              />
             </div>
-          )}
-        </div>
-
-        <div>
-          <ChatInput
-            prompt={prompt}
-            onSubmit={(e) => {
-              e.preventDefault();
-              e.currentTarget.querySelector("textarea")!.value = "";
-              void submitPropt({ prompt, messages, authInfo });
-            }}
-            onInputChange={onInputChange}
-            inputStyle={deferredInputStyle}
-            textareaRef={textareaRef}
-            inputFormRef={inputFormRef}
-          />
-
-          <ModelSelector
-            isOpen={isModelSelectorOpen}
-            availableModels={availableModels}
-            selectedModel={selectedModel}
-            onSelectModel={setSelectedModel}
-            onRequestContext={(tokenLimit) => {
-              if (!MOCK_WEBVIEW_ENV.enabled) {
-                /* @ts-expect-error webkit */
-                // eslint-disable-next-line
-                window.webkit.messageHandlers.en_ai_handler.postMessage({
-                  source: "enai-agent",
-                  version: 1,
-                  type: "request-context",
-                  token_limit: tokenLimit,
-                });
-              }
-            }}
-            onToggle={() => setIsModelSelectorOpen(!isModelSelectorOpen)}
-          />
-        </div>
+          </div>
+        </Slot>
       </div>
-    </div>
+    </Slot>
   );
 }
 

@@ -28,7 +28,7 @@ export const MOCK_WEBVIEW_ENV = {
   enabled: true,
   baseUrl: "http://127.0.0.1:8000",
   inspiration:
-    "Balancing sweet, salty, sour, bitter, and umami flavors is key to making delicious and memorable dishes.",
+    "The greatest beauty is organic wholeness, the wholeness of life and things, the divine beauty of the universe.",
   authDetails: {
     userId: "38db32a3-ef9b-40dd-a5fb-cd9ab4776016",
     bearerToken: "test",

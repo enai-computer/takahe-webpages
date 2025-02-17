@@ -16,4 +16,12 @@ export interface SubmitPromptParams {
   messages: Message[];
   authInfo: AuthInfo;
   retries?: number;
-} 
+}
+
+export const MOCK_WEBVIEW_ENV = {
+  enabled: true,
+  baseUrl: 'http://127.0.0.1:8000', // Your backend's address
+  availableModels: [/*...mock models array...*/],
+  inspiration: '<p>Some inspirational message</p>',
+  authDetails: { userId: '38db32a3-ef9b-40dd-a5fb-cd9ab4776016', bearerToken: 'your-token' }
+}; 
