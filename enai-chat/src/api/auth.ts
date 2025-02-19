@@ -1,11 +1,24 @@
 import { AuthInfo, AuthInfoDetails, AuthInfoStatus } from "../models";
 import { MOCK_WEBVIEW_ENV } from "../utils/config";
 import { ModifiedWindow } from "../utils/types";
+import { create } from "zustand";
 
-  /**
-   * @returns Either the new auth details, or `false` in case it failed.
-   */
-export const waitForAuthDetails = async (setAuthInfo: (info: AuthInfo) => void, authInfo: AuthInfo): Promise<AuthInfoDetails | false> => {
+export const authInfoStore = create<{
+  authInfo: AuthInfo;
+  setAuthInfo: (info: AuthInfo) => void;
+}>((set) => ({
+  authInfo: {
+    status: AuthInfoStatus.NotSet,
+    details: null,
+  },
+  setAuthInfo: (info) => set({ authInfo: info }),
+}));
+
+/**
+ * @returns Either the new auth details, or `false` in case it failed.
+ */
+export async function refreshAuth(): Promise<boolean> {
+  const authInfo = authInfoStore.getState().authInfo;
   const TIME_LIMIT_MS = 10_000;
 
   if (!MOCK_WEBVIEW_ENV.enabled) {
@@ -17,6 +30,9 @@ export const waitForAuthDetails = async (setAuthInfo: (info: AuthInfo) => void, 
       type: "token-request",
       sub_type: authInfo.status === AuthInfoStatus.NotSet ? "initial" : "refresh",
     });
+  }else{
+    authInfoStore.getState().setAuthInfo({ status: AuthInfoStatus.InUse, details: { userId: "test", bearerToken: "test" } });
+    return Promise.resolve(true);
   }
 
   console.debug("Waiting for auth details now...");
@@ -28,14 +44,14 @@ export const waitForAuthDetails = async (setAuthInfo: (info: AuthInfo) => void, 
       const win = window as ModifiedWindow;
       win.updateAuthDetails = (details: AuthInfoDetails) => {
         resolve(details);
-        win.updateAuthDetails = (details: AuthInfoDetails) =>
-          setAuthInfo({ status: AuthInfoStatus.InUse, details });
       };
     }),
   ])) as AuthInfoDetails | false;
   
   if (details) {
-    setAuthInfo({ status: AuthInfoStatus.InUse, details });
+    authInfoStore.getState().setAuthInfo({ status: AuthInfoStatus.InUse, details });
+    return Promise.resolve(true);
   }
-  return details;
-}; 
+  return Promise.resolve(false);
+}
+

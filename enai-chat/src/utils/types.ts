@@ -1,4 +1,4 @@
-import { AuthInfo, AuthInfoDetails, ExchangeMessage, Message, AiModel } from "../models";
+import { AuthInfoDetails, ExchangeMessage, Message, AiModel } from "../models";
 
 export type ModifiedWindow = Window &
   typeof globalThis & {
@@ -7,13 +7,7 @@ export type ModifiedWindow = Window &
     updateInfoModal?(innerHtml: string): void;
     updateAuthDetails?(details: AuthInfoDetails): void;
     setContext?(context: string[]): void;
-    getMessages?(): ExchangeMessage[];
+    getMessages?(): Message[];
     setMessages?(messages: ExchangeMessage[]): void;
+    setMessagesV2?(messages: Message[]): void;
   };
-
-export interface SubmitPromptParams {
-  prompt: string;
-  messages: Message[];
-  authInfo: AuthInfo;
-  retries?: number;
-} 

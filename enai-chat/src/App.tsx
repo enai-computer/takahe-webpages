@@ -8,38 +8,25 @@ import {
 // import Markdown from "react-markdown";
 import { twMerge } from "tailwind-merge";
 import { IconEveMark } from "./components/icons/IconEveMark";
-import { AuthInfo, AuthInfoDetails, AuthInfoStatus, ExchangeMessage, ExchangeMessageRole, Message, MessageType, AiModel} from "./models";
+import { Message, AiModel} from "./models";
 import { ChatInput } from "./components/ChatInput";
 import { ModelSelector } from "./components/ModelSelector";
 import { ChatMessage } from "./components/ChatMessage";
-import { API_VERSION, INPUT_STYLE_CONFIG, MAX_CONTEXT_MESSAGES_LENGTH, MOCK_WEBVIEW_ENV } from "./utils/config";
-import { ModifiedWindow, SubmitPromptParams } from "./utils/types";
-import { waitForAuthDetails } from "./api/auth";
+import { API_VERSION, INPUT_STYLE_CONFIG, MOCK_WEBVIEW_ENV } from "./utils/config";
+import { ModifiedWindow } from "./utils/types";
+import { submitPropt } from "./api/chat";
 
-const API_BASE_URL = (): string => {
+export const API_BASE_URL = (): string => {
   const win = window as ModifiedWindow;
   return win.API_BASE_HOST + API_VERSION;
 };
 
-const convertMessageToExchangeMessage = (message: Message): ExchangeMessage => {
-  return {
-    role:
-      message.type === MessageType.Prompt
-        ? ExchangeMessageRole.User
-        : ExchangeMessageRole.Assistant,
-    content: message.text,
-  };
-};
-
 function App() {
   const [inspirationHtml, setInspirationHtml] = useState<string | null>(null);
-  const [authInfo, setAuthInfo] = useState<AuthInfo>({
-    status: AuthInfoStatus.NotSet,
-    details: null,
-  });
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+
   const chatRef = useRef<HTMLDivElement>(null);
   const inputFormRef = useRef<HTMLFormElement>(null);
 
@@ -50,7 +37,7 @@ function App() {
     lineHeight: `${INPUT_STYLE_CONFIG.lineHeight.normal}px`,
   });
 
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessagesV2] = useState<Message[]>([]);
   const [context, setContext] = useState<string[]>([]);
   const deferredInputStyle = useDeferredValue(inputStyle);
 
@@ -63,169 +50,6 @@ function App() {
     description: "Anthropic's latest model.",
     token_limit: 75000
   });
-
-  const submitPropt = async ({
-    prompt,
-    messages,
-    authInfo,
-    retries = 0,
-  }: SubmitPromptParams): Promise<void> => {
-    const MAX_RETRIES = 2;
-
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    abortControllerRef.current = new AbortController();
-
-    const sanitizedPrompt = prompt.replace(/^\n+|\n+$/g, "");
-
-    const messagesIds = {
-      prompt: Math.random().toString(16).slice(2),
-      response: Math.random().toString(16).slice(2),
-    };
-    const resultMessages = [
-      ...messages.map((message) => {
-        return {
-          ...message,
-          isLoading: false,
-        };
-      }),
-      {
-        id: messagesIds.prompt,
-        isLoading: false,
-        type: MessageType.Prompt,
-        text: sanitizedPrompt,
-      },
-      {
-        id: messagesIds.response,
-        isLoading: true,
-        type: MessageType.Response,
-        text: "",
-      },
-    ];
-    setMessages(resultMessages);
-
-    const setFailureMessages = () => {
-      setMessages((messages) => {
-        for (const message of messages) {
-          if (message.id === messagesIds.response) {
-            message.isLoading = false;
-            message.text = "[Could not get answer. Please try again.]";
-            break;
-          }
-        }
-        return [...messages];
-      });
-    };
-
-    const handleAuthFailure = async () => {
-      console.debug(
-        "Retrying authentication, currently at",
-        retries,
-        "retries"
-      );
-      if (retries >= MAX_RETRIES) {
-        setFailureMessages();
-        return;
-      }
-      return await submitPropt({
-        prompt,
-        messages: messages.filter(
-          (m) => m.id !== messagesIds.prompt && m.id !== messagesIds.response
-        ),
-        authInfo: { status: AuthInfoStatus.Invalid, details: null },
-        retries: retries + 1,
-      });
-    };
-
-    let lastAuthInfo = authInfo;
-    if (lastAuthInfo.status !== AuthInfoStatus.InUse) {
-      const details = await waitForAuthDetails(setAuthInfo, authInfo);
-      if (!details) {
-        return await handleAuthFailure();
-      }
-      lastAuthInfo = { status: AuthInfoStatus.InUse, details };
-    }
-
-    // fetching title of the chat
-    if (messages.length <= 1) {
-      try {
-        const res = await fetch(
-          `${API_BASE_URL()}/${lastAuthInfo.details.userId}/title?prompt=${encodeURIComponent(sanitizedPrompt)}`,
-          {
-            signal: abortControllerRef.current.signal,
-            method: "GET",
-            headers: new Headers({
-              Authorization: `Bearer ${lastAuthInfo.details.bearerToken}`,
-            })
-          }
-        );
-        if (res.status === 401) {
-          return await handleAuthFailure();
-        }
-        if (res.ok && res.body) {
-          const title = (await res.text()).trim().replace(/^"|"$/g, "");
-          document.title = title;
-        }
-      } catch (error) {
-        console.error(
-          "An error occurred while fetching a title for the users query",
-          error
-        );
-      }
-    }
-    // fetching response to user question
-    try {
-      const res = await fetch(
-        `${API_BASE_URL()}/${lastAuthInfo.details.userId}/answer`,
-        {
-          signal: abortControllerRef.current.signal,
-          method: "POST",
-          headers: new Headers({
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${lastAuthInfo.details.bearerToken}`,
-          }),
-          body: JSON.stringify({
-            is_streaming: true,
-            question: sanitizedPrompt,
-            model_id: selectedModel.id,
-            context: context,
-            messages: messages
-              .slice(messages.length - MAX_CONTEXT_MESSAGES_LENGTH)
-              .map(convertMessageToExchangeMessage),
-          }),
-        }
-      );
-
-      if (res.status === 401) {
-        return await handleAuthFailure();
-      }
-
-      if (!res.ok || !res.body) {
-        setFailureMessages();
-        return;
-      }
-
-      const reader = res.body.getReader();
-      const chunks = [];
-
-      while (true) {
-        const r = await reader.read();
-        if (r.done) {
-          resultMessages[resultMessages.length - 1].isLoading = false;
-          setMessages([...resultMessages]);
-          break;
-        }
-        const text = new TextDecoder().decode(r.value);
-        resultMessages[resultMessages.length - 1].text += text;
-        setMessages([...resultMessages]);
-        chunks.push(r.value);
-      }
-    } catch (e) {
-      console.error("An error occurred while fetching the prompt response", e);
-      setFailureMessages();
-    }
-  };
 
   useEffect(() => {
     if (!chatRef.current || !isChatAttached) return;
@@ -287,22 +111,25 @@ function App() {
   useEffect(() => {
     const win = window as ModifiedWindow;
     win.updateInfoModal = (innerHtml: string) => setInspirationHtml(innerHtml);
-    win.updateAuthDetails = (details: AuthInfoDetails) =>
-      setAuthInfo({ status: AuthInfoStatus.InUse, details });
-    win.setMessages = (exchangeMessages) => {
-      setMessages(
-        exchangeMessages.map((exchangeMessage) => {
-          return {
-            id: Math.random().toString(16).slice(2),
-            isLoading: false,
-            text: exchangeMessage.content,
-            type:
-              exchangeMessage.role === ExchangeMessageRole.User
-                ? MessageType.Prompt
-                : MessageType.Response,
-          };
-        })
-      );
+    // win.setMessages = (exchangeMessages) => {
+    //   setMessages(
+    //     exchangeMessages.map((exchangeMessage) => {
+    //       return {
+    //         id: Math.random().toString(16).slice(2),
+    //         isLoading: false,
+    //         content: {
+    //           text: exchangeMessage.content,
+    //         },
+    //         type:
+    //           exchangeMessage.role === ExchangeMessageRole.User
+    //             ? MessageType.Prompt
+    //             : MessageType.TextResponse,
+    //       };
+    //     })
+    //   );
+    // };
+    win.setMessagesV2 = (messages) => {
+      setMessagesV2(messages);
     };
     win.setContext = (context) => {
       setContext(context);
@@ -313,7 +140,6 @@ function App() {
       win.API_BASE_HOST = MOCK_WEBVIEW_ENV.baseUrl;
       win.setAvailableModels(MOCK_WEBVIEW_ENV.availableModels);
       win.updateInfoModal(MOCK_WEBVIEW_ENV.inspiration);
-      win.updateAuthDetails?.(MOCK_WEBVIEW_ENV.authDetails);
     } else {
       /* @ts-expect-error webkit */
       // eslint-disable-next-line
@@ -336,14 +162,13 @@ function App() {
       delete win.setMessages;
       delete win.setContext;
       delete win.updateInfoModal;
-      delete win.updateAuthDetails;
     };
   }, [selectedModel.token_limit]);
 
   useEffect(() => {
     const win = window as ModifiedWindow;
     win.getMessages = () => {
-      return messages.map(convertMessageToExchangeMessage);
+      return messages;
     };
 
     return () => {
@@ -405,7 +230,7 @@ function App() {
             onSubmit={(e) => {
               e.preventDefault();
               e.currentTarget.querySelector("textarea")!.value = "";
-              void submitPropt({ prompt, messages, authInfo });
+              void submitPropt({ prompt, messages, selectedModel, context, abortControllerRef });
             }}
             onInputChange={onInputChange}
             inputStyle={deferredInputStyle}
