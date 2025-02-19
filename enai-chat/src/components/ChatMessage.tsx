@@ -19,7 +19,7 @@ export function ChatMessage({ message, isFirst }: ChatMessageProps) {
         isFirst ? "mt-[30px] md:mt-[80px]" : ""
       )}
     >
-      {message.type === MessageType.Response && (
+      {message.type === MessageType.Text && (
         <div className="absolute -ml-8 mt-1">
           <IconEveMark
             className={twMerge(
@@ -32,12 +32,18 @@ export function ChatMessage({ message, isFirst }: ChatMessageProps) {
         </div>
       )}
       {message.type === MessageType.Prompt ? (
-        <p className="whitespace-pre-wrap">{message.text}</p>
-      ) : (
+        <p className="whitespace-pre-wrap">{'text' in message.content ? message.content.text : ''}</p>
+      ) : message.type === MessageType.Text ? (
         <div className="response">
-          <Markdown>{message.text}</Markdown>
+          <Markdown>{
+            'text' in message.content ? message.content.text : ''
+          }</Markdown>
         </div>
-      )}
+      ) : message.type === MessageType.Applet ? (
+        <div className="applet-output">
+          <iframe src={'resourceUrl' in message.content ? message.content.resourceUrl : ''}></iframe>
+        </div>
+      ) : null}
     </div>
   );
 } 

@@ -39,13 +39,24 @@ export type AuthInfo =
 
 export enum MessageType {
   Prompt = "PROMPT",
-  Response = "RESPONSE",
+  Text = "TEXT",
   Applet = "APPLET",
+}
+
+export type MessageContent = TextContent | AppletContent;
+
+export interface AppletContent {
+  resourceUrl: string;
+  content: object;
+}
+
+export interface TextContent {
+  text: string;
 }
 
 export interface Message {
   id: string;
   isLoading: boolean;
   type: MessageType;
-  text: string;
+  content: MessageContent;
 }
