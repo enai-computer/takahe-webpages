@@ -31,7 +31,7 @@ export async function refreshAuth(): Promise<boolean> {
       sub_type: authInfo.status === AuthInfoStatus.NotSet ? "initial" : "refresh",
     });
   }else{
-    authInfoStore.getState().setAuthInfo({ status: AuthInfoStatus.InUse, details: { userId: "test", bearerToken: "test" } });
+    authInfoStore.getState().setAuthInfo({ status: AuthInfoStatus.InUse, details: { userId: "DA542425-F2B6-4610-832F-C7AE0FFC02C8", bearerToken: "test" } });
     return Promise.resolve(true);
   }
 
