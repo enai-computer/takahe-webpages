@@ -4,6 +4,8 @@ import {
   useEffect,
   useRef,
   useState,
+  memo,
+  useMemo
 } from "react";
 // import Markdown from "react-markdown";
 import { twMerge } from "tailwind-merge";
@@ -38,6 +40,7 @@ function App() {
   });
 
   const [messages, setMessagesV2] = useState<Message[]>([]);
+  const memoizedChatMessage = memo(ChatMessage);
   const [context, setContext] = useState<string[]>([]);
   const deferredInputStyle = useDeferredValue(inputStyle);
 
@@ -176,6 +179,18 @@ function App() {
     };
   }, [messages]);
 
+  const messagesList = useMemo(() => (
+    <div className="space-y-5">
+      {messages.map((message, i) => (
+        <ChatMessage
+          key={message.id}
+          message={message}
+          isFirst={i === 0}
+        />
+      ))}
+    </div>
+  ), [messages]); 
+
   return (
     <div className="h-dvh px-[8px] py-[12px] md:p-[80px] md:pt-0 flex justify-center">
       {messages.length <= 1 && (<div className="fixed inset-0 flex items-center justify-center -z-10">
@@ -211,17 +226,8 @@ function App() {
                 <span>Thinking...</span>
               )}
             </p>
-          ) : (
-            <div className="space-y-5">
-              {messages.map((message, i) => (
-                <ChatMessage
-                  key={message.id}
-                  message={message}
-                  isFirst={i === 0}
-                />
-              ))}
-            </div>
-          )}
+          ) : messagesList
+          }
         </div>
 
         <div>
