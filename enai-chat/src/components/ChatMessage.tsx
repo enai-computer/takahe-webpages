@@ -1,7 +1,11 @@
 import Markdown from "react-markdown";
-import { Message, MessageType } from "../models";
+import { AppletContent, Message, MessageType } from "../models";
 import { IconEveMark } from "./icons/IconEveMark";
 import { twMerge } from "tailwind-merge";
+import { AppletFrame } from "./AppletFrame";
+// import { AppletFrame } from "@web-applets/sdk";
+// import '@web-applets/sdk/dist/elements/applet-frame';
+
 
 interface ChatMessageProps {
   message: Message;
@@ -40,10 +44,12 @@ export function ChatMessage({ message, isFirst }: ChatMessageProps) {
           }</Markdown>
         </div>
       ) : message.type === MessageType.Applet ? (
-        <div className="applet-output">
-          <iframe src={'resourceUrl' in message.content ? message.content.resourceUrl : ''}></iframe>
-        </div>
+        <AppletFrame 
+          src={(message.content as AppletContent).resourceUrl} 
+          data={(message.content as AppletContent).content} 
+        />
       ) : null}
     </div>
   );
 } 
+

@@ -1,4 +1,5 @@
 import { AiModel } from "../models";
+import { maraeAppletToMesssage, MaraeChatMessage, MaraeChatMessageAppletContent } from "./maraeModels";
 import { refreshAuth } from "./auth";
 import { ModifiedWindow } from "../utils/types";
 import { MessageType, Message } from "../models";
@@ -56,7 +57,7 @@ export const submitPropt = async ({
       {
         id: messagesIds.response,
         isLoading: true,
-        type: MessageType.Text,
+        type: MessageType.Loading,
         content: {
           text: "",
         },
@@ -179,6 +180,23 @@ export const submitPropt = async ({
 
       const reader = res.body.getReader();
       const chunks = [];
+
+      const readerRead = await reader.read();
+      const responseBody = new TextDecoder().decode(readerRead.value);
+
+      try {
+        const parsedResponse: MaraeChatMessage = JSON.parse(responseBody) as MaraeChatMessage;
+        //TODO: set response type to Applet
+        if(parsedResponse.type === MessageType.Applet) {
+          resultMessages[resultMessages.length - 1] = maraeAppletToMesssage(parsedResponse.content as MaraeChatMessageAppletContent)
+          return;
+        }
+        console.debug("parsed response", parsedResponse);
+      } catch (error) {
+        console.error("Failed to parse response body:", error);
+      }
+
+      console.log("responseBody", responseBody);
 
       while (true) {
         const r = await reader.read();

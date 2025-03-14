@@ -38,6 +38,7 @@ export type AuthInfo =
   };
 
 export enum MessageType {
+  Loading = "LOADING",
   Prompt = "PROMPT",
   Text = "TEXT",
   Applet = "APPLET",

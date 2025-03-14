@@ -4,13 +4,14 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --logLevel debug",
+    "dev": "vite --debug --port 8070",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
     "@radix-ui/themes": "3.1.4",
+    "@web-applets/sdk": "file:/Users/Patrick/Workbench/web-applets/sdk",
     "node-fetch": "2.7.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
